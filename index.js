@@ -8,7 +8,8 @@ const client = new Client({
         IntentsBitField.Flags.GuildMembers,
         IntentsBitField.Flags.GuildMessages,
         IntentsBitField.Flags.MessageContent,
-        IntentsBitField.Flags.DirectMessages
+        IntentsBitField.Flags.DirectMessages,
+        IntentsBitField.Flags.GuildMessageReactions
     ]
 })
 client.on('ready', (c)=>{
@@ -18,6 +19,27 @@ client.on('ready', (c)=>{
 let golRef = null //used as message ref for game of life instance
 let genCnt = 0
 
+let snakeRef = null //used as message ref for snake game
+
+client.on('messageReactionAdd', (reaction, user)=>{
+    if(!user.bot){
+        //console.log(reaction._emoji.name)
+        if(reaction._emoji.name == '⬆️'){
+            dir = 'u'
+        }
+        if(reaction._emoji.name == '⬇️'){
+            dir = 'd'
+        }
+        if(reaction._emoji.name == '⬅️'){
+            dir = 'l'
+        }
+        if(reaction._emoji.name == '➡️'){
+            dir = 'r'
+        }
+        reaction.users.remove(user)
+    }
+})
+
 client.on('messageCreate', (message)=>{
     //console.log(message.content)
     if(message.author.bot){ //Dont look at messages sent from other bots
@@ -25,6 +47,7 @@ client.on('messageCreate', (message)=>{
     }
     //commands
     if(message.content == '!sale'){ //wishlist games
+        message.reply('Scraping Steam please wait...')
         scrapeProduct('https://store.steampowered.com/app/1184370/Pathfinder_Wrath_of_the_Righteous__Enhanced_Edition/', message)
         scrapeProduct('https://store.steampowered.com/app/1245620/ELDEN_RING/', message)
         scrapeProduct('https://store.steampowered.com/app/1940340/Darkest_Dungeon_II/', message)
@@ -37,7 +60,7 @@ client.on('messageCreate', (message)=>{
         scrapeProduct('https://store.steampowered.com/app/526870/Satisfactory/', message)
     }
     else if(message.content == '!commands'){
-        message.reply('!commands, to see a list of all commands\n!sale, to see steam wishlist games on sale\n!coinflip, to flip a coin\n!gameoflife, to watch a simulation of the game of life')
+        message.reply('!commands, to see a list of all commands\n!sale, to see steam wishlist games on sale\n!coinflip, to flip a coin\n!gameoflife, to start a simulation of the game of life\n!snake, to play a game of snake')
     }
     else if(message.content == '!coinflip'){
         const res = Math.floor(Math.random() * 2)
@@ -64,14 +87,162 @@ client.on('messageCreate', (message)=>{
         else{
             message.reply("Already running Game of Life instance")
         }
-        
+    }
+    else if(message.content == '!test'){
+        client.users.cache.get(process.env.myID).send('hello')
+    }
+    else if(message.content == '!snake'){
+        if(!snakeRef){
+            snakeHelper(message)
+        }
+        else{
+            message.reply("Already running snake instance")
+        }
     }
 })
 
-async function golHelper(message){
+async function snakeHelper(message){//helper function to grab reference for my message so i can edit it
+    snakeRef = await message.channel.send("Loading")
+    snakeRef.react('⬆️')
+    snakeRef.react('⬇️')
+    snakeRef.react('⬅️')
+    snakeRef.react('➡️')
+    //any snake cell can either be the head, body, or tail
+    snakeBody = [{y: 4, x: 4}]
+    dir = 'r'
+    snake()
+}
+let snakeBody = [{y: 4, x: 4}]
+let apple = {y: 8, x: 8}
+let dir = 'r'
+let ateApple = false
+function snake(){
+    //reset board
+    //update snakeBody
+    //update grid
+    //build emote res
+    //output
+    
+    snakeBoard = [//reset board
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ] 
+
+    let prevHead = {...snakeBody[0]}
+    let temp = {x: snakeBody[0].x, y: snakeBody[0].y}
+    let temp2 = {x: snakeBody[0].x, y: snakeBody[0].y}
+    if(dir == 'r'){
+        snakeBody[0].x += 1
+    }
+    else if(dir == 'l'){
+        snakeBody[0].x -= 1
+    }
+    else if(dir == 'u'){
+        snakeBody[0].y -= 1
+    }
+    else if(dir == 'd'){
+        snakeBody[0].y += 1
+    }
+    
+    if(snakeBody[0].y < 0 || snakeBody[0].y >= snakeBoard.length || snakeBody[0].x < 0 || snakeBody[0].x >= snakeBoard[0].length || snakeBoard[snakeBody[0].y][snakeBody[0].x] == 1){ //out of bounds or ate itself
+        const emb = new EmbedBuilder()
+            .setImage('https://assetsio.reedpopcdn.com/five-of-the-best-game-over-screens-1590748640300.jpg?width=1600&height=900&fit=crop&quality=100&format=png&enable=upscale&auto=webp')
+        snakeRef.edit({embeds: [emb]})
+        snakeRef = null
+        return
+    }
+    snakeBoard[snakeBody[0].y][snakeBody[0].x] = 1
+    
+    
+    if(snakeBody[0].y == apple.y && snakeBody[0].x == apple.x){//ate apple
+        snakeBody[0] = {...prevHead}
+        snakeBoard[snakeBody[0].y][snakeBody[0].x] = 1
+        snakeBody.unshift({x: apple.x, y: apple.y})
+        for(s of snakeBody){
+            snakeBoard[s.y][s.x] = 1
+        }
+        spawnApple()
+    }
+    else{
+        for(let i = 1; i < snakeBody.length; i++){
+            temp2 = {...snakeBody[i]}
+            snakeBody[i] = {...temp}
+            temp = {...temp2}
+            snakeBoard[snakeBody[i].y][snakeBody[i].x] = 1
+        }
+        
+    }
+    
+    
+    snakeBoard[apple.y][apple.x] = 2
+    
+    
+    let res = ""
+    for(let i = 0; i < snakeBoard.length; i++){
+        for(let j = 0; j < snakeBoard[0].length; j++){
+            if(snakeBoard[i][j] == 1){
+                res += ':green_square:'
+            }
+            else if(snakeBoard[i][j] == 2){
+                res += ':red_square:'
+            }
+            else{
+                res += ':white_large_square:'
+            }
+        }
+        res += '\n'
+    }
+    
+    const emb = new EmbedBuilder()
+        .setTitle(`Snake Score: ${snakeBody.length-1}`)
+        .setDescription(res)
+        .addFields(
+            {name: 'Eat all the apples!', value: 'Controls below'}
+        )
+    snakeRef.edit({embeds: [emb]})
+    setTimeout(snake, 1000)
+}
+
+async function golHelper(message){ //helper function to grab reference for my message so i can edit it
     golRef = await message.channel.send("Loading...")
     gol()
 }
+
+function spawnApple(){
+    for(let i = 0; i < 50; i++){
+        let y = Math.floor(Math.random() * snakeBoard.length)
+        let x = Math.floor(Math.random() * snakeBoard[0].length)
+        if(snakeBoard[y][x] == 0){
+            apple.y = y
+            apple.x = x
+        }
+        snakeBoard[y][x] = 2
+        break
+    }
+    
+
+}
+
+let snakeBoard = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+] 
 
 const golPreset1 = [
     [1, 0, 0, 0, 0, 1, 0, 1, 0, 1],
@@ -82,6 +253,7 @@ const golPreset1 = [
     [0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
     [0, 0, 1, 0, 1, 0, 0, 0, 1, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 ]
 
@@ -95,6 +267,7 @@ const golPreset2 = [
     [0, 0, 1, 0, 1, 0, 1, 0, 1, 0],
     [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
     [0, 0, 1, 0, 1, 0, 0, 1, 0, 1],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 ]
 
 let golArray = [
@@ -107,6 +280,7 @@ let golArray = [
     [0, 0, 1, 0, 1, 0, 1, 0, 1, 0],
     [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
     [0, 0, 1, 0, 1, 0, 0, 1, 0, 1],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 ]
 
 let golArrayCopy = [
@@ -119,12 +293,12 @@ let golArrayCopy = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 ]
 
 
 function gol(){ //game of life main function
-    if(genCnt >= 50){
+    if(genCnt >= 100){
         golRef = null;
         genCnt = 0
         golArray = copyBoard(golPreset2)
@@ -166,7 +340,7 @@ function gol(){ //game of life main function
                 golArrayCopy[i][j] = 0
                 res += ':white_medium_square:'
             }
-            
+            //console.log(res)
         }
         res += '\n'
     }
@@ -287,9 +461,5 @@ async function scrapeProduct(url, message){ //Scrape steam game page for given u
     }
 }
 
-/*
-scrapeProduct('https://store.steampowered.com/app/1245620/ELDEN_RING/')
-scrapeProduct('https://store.steampowered.com/app/1940340/Darkest_Dungeon_II/')
-scrapeProduct('https://store.steampowered.com/app/1184370/Pathfinder_Wrath_of_the_Righteous__Enhanced_Edition/')
-*/
+
 
