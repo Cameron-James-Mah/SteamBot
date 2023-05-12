@@ -36,6 +36,9 @@ client.on('messageReactionAdd', (reaction, user)=>{
         if(reaction._emoji.name == '➡️'){
             dir = 'r'
         }
+        if(reaction._emoji.name == '🔄' && !snakeRef){
+            snakeHelper(reaction.message)
+        }
         reaction.users.remove(user)
     }
 })
@@ -107,6 +110,7 @@ async function snakeHelper(message){//helper function to grab reference for my m
     snakeRef.react('⬇️')
     snakeRef.react('⬅️')
     snakeRef.react('➡️')
+    snakeRef.react('🔄')
     //any snake cell can either be the head, body, or tail
     snakeBody = [{y: 4, x: 4}]
     dir = 'r'
